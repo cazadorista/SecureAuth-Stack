@@ -1,0 +1,90 @@
+{
+    "master": {
+        "users": [
+            {
+                "username": "${KEYCLOAK_ADMIN}",
+                "enabled": true,
+                "email": "${KEYCLOAK_ADMIN_EMAIL}",
+                "emailVerified": true,
+                "firstName": "",
+                "lastName": "",
+                "credentials": [
+                    {
+                        "type": "password",
+                        "value": "${KEYCLOAK_ADMIN_PASSWORD}",
+                        "temporary": false
+                    }
+                ],
+                "realmRoles": [
+                    "admin",
+                    "default-roles-master"
+                ]
+            }
+        ]
+    },
+    "playground": {
+        "users": [
+            {
+                "username": "${KEYCLOAK_APP_REALM_ADMIN}",
+                "enabled": true,
+                "email": "${KEYCLOAK_APP_REALM_ADMIN_EMAIL}",
+                "emailVerified": true,
+                "firstName": "${KEYCLOAK_APP_REALM_ADMIN_FNAME}",
+                "lastName": "${KEYCLOAK_APP_REALM_ADMIN_LNAME}",
+                "credentials": [
+                    {
+                        "type": "password",
+                        "value": "${KEYCLOAK_APP_REALM_ADMIN_PASSWORD}",
+                        "temporary": false
+                    }
+                ],
+                "realmRoles": [
+                    "default-roles-playground"
+                ],
+                "clientRoles": {
+                    "realm-management": [
+                        "realm-admin"
+                    ]
+                }
+            },
+            {
+                "username": "${KC_APP_TA}",
+                "enabled": true,
+                "email": "${KC_APP_TA_EMAIL}",
+                "emailVerified": true,
+                "firstName": "${KC_APP_TA_FNAME}",
+                "lastName": "${KC_APP_TA_LNAME}",
+                "credentials": [
+                    {
+                        "type": "password",
+                        "value": "${KC_APP_TA_PASSWORD}",
+                        "temporary": false
+                    }
+                ],
+                "realmRoles": [
+                    "default-roles-playground",
+                    "playground-admin"
+                ]
+            },
+            {
+                "username": "${KC_APP_TU}",
+                "enabled": true,
+                "email": "${KC_APP_TU_EMAIL}",
+                "emailVerified": true,
+                "firstName": "${KC_APP_TU_FNAME}",
+                "lastName": "${KC_APP_TU_LNAME}",
+                "credentials": [
+                    {
+                        "type": "password",
+                        "value": "${KC_APP_TU_PASSWORD}",
+                        "temporary": false
+                    }
+                ],
+                "realmRoles": [
+                    "default-roles-playground",
+                    "playground-user"
+                ]
+            }
+        ]
+    }
+}

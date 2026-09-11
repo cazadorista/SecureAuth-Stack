@@ -1,0 +1,26 @@
+[
+  {
+    "name": "playground-admin",
+    "description": "Admin in playground realm",
+    "composite": true,
+    "composites": {
+      "realm": [
+        "playground-mod"
+      ]
+    }
+  },
+  {
+    "name": "playground-mod",
+    "description": "Moderator in playground realm",
+    "composite": true,
+    "composites": {
+      "realm": [
+        "playground-user"
+      ]
+    }
+  },
+  {
+    "name": "playground-user",
+    "description": "Normal user in playground realm"
+  }
+]
