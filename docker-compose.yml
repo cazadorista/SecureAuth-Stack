@@ -6,14 +6,10 @@ services:
       - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      # - "--providers.docker.httpClientTimeout=100"
       - "--entryPoints.web.address=:80"
       - "--entryPoints.websecure.address=:443"
       - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
       - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
-      # - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      # - "--certificatesresolvers.myresolver.acme.email=${KEYCLOAK_APP_REALM_ADMIN_EMAIL}"
-      # - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
       - "--providers.file.filename=/etc/traefik/traefik_dynamic.yml"
       - "--providers.docker.network=proxy-network"
     labels:
@@ -89,7 +85,7 @@ services:
       KC_DB_USERNAME: ${POSTGRES_USER}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
       KC_PROXY_HEADERS: xforwarded
-      KC_HTTP_ENABLED: "true" # TODO: remove when changing kc to production
+      KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
       KC_HOSTNAME_STRICT_HTTPS: "false"
     volumes:
@@ -143,7 +139,7 @@ services:
     restart: unless-stopped
     environment:
       KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL}
-      KEYCLOAK_ISSUER_URL: http://${DOMAIN_AUTH}/realms/${KEYCLOAK_APP_REALM}
+      KEYCLOAK_ISSUER_URL: https://${DOMAIN_AUTH}/realms/${KEYCLOAK_APP_REALM}
       KEYCLOAK_REALM: ${KEYCLOAK_APP_REALM}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
