@@ -1,4 +1,4 @@
-from app import db
+from app.core.db import db
 from datetime import datetime, timezone
 
 class Recipe(db.Model):

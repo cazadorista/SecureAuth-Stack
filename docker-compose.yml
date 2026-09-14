@@ -1,4 +1,19 @@
 services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    environment:
+      - CONTAINERS=1
+      - NETWORKS=1
+      - SERVICES=1
+      - VERSION=1
+      - EVENTS=1
+      - PING=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket-proxy-net
+
   traefik:
     image: traefik:v3.7
     restart: unless-stopped
@@ -6,6 +21,7 @@ services:
       - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.endpoint=tcp://docker-socket-proxy:2375"
       - "--entryPoints.web.address=:80"
       - "--entryPoints.websecure.address=:443"
       - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
@@ -23,11 +39,13 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./certs:/certs:ro
+      - ./certs:/certs:ro # DEV ONLY: Change to let's encrypt certs when deploying to production!
       - ./traefik_dynamic.yml:/etc/traefik/traefik_dynamic.yml:ro
     networks:
       - proxy-network
+      - socket-proxy-net
+    depends_on:
+      - docker-socket-proxy
     deploy:
       resources:
         limits:
@@ -36,6 +54,7 @@ services:
           memory: 64M
 
   postgres:
+    # DEV ONLY: Add TLS when db is going to be on a separate server!
     image: postgres:16-alpine
     restart: unless-stopped
     command: postgres -c max_connections=200
@@ -52,7 +71,7 @@ services:
     networks:
       - internal-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -63,12 +82,12 @@ services:
         reservations:
           memory: 256M
 
-
   keycloak-config-builder:
     image: python:3.11-alpine
+    env_file:
+      - ./.env # DEV ONLY: Share secrets using Docker Secrets or a dedicated Vault when deploying to production!
     volumes:
       - ./keycloak:/app
-      - ./.env:/app/.env
     working_dir: /app
     command: python run_all.py
     profiles:
@@ -78,27 +97,29 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.7
     restart: unless-stopped
-    command: start-dev --import-realm --health-enabled=true
+    command: start-dev --import-realm --health-enabled=true # DEV ONLY: Change to start when deploying to production!
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       KC_DB_USERNAME: ${POSTGRES_USER}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
       KC_PROXY_HEADERS: xforwarded
-      KC_HTTP_ENABLED: "true"
-      KC_HOSTNAME_STRICT: "false"
-      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true" # DEV ONLY: Change to false when deploying to production!
+      KC_HOSTNAME_STRICT: "false" # DEV ONLY: Change to true when deploying to production!
+      KC_HOSTNAME_STRICT_HTTPS: "false" # DEV ONLY: Change to true when deploying to production!
+      KC_HOSTNAME: https://${DOMAIN_AUTH}
+      KC_HOSTNAME_STRICT_BACKCHANNEL: "false" # DEV ONLY: Change to true when deploying to production!
     volumes:
-    - ./keycloak/import:/opt/keycloak/data/import:ro
+      - ./keycloak/import:/opt/keycloak/data/import:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.rule=Host(`${DOMAIN_AUTH}`)"
       - "traefik.http.routers.keycloak.entrypoints=websecure"
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
       - "traefik.http.routers.keycloak.tls=true"
-      - "traefik.docker.network=playground_proxy-network"
+      - "traefik.docker.network=proxy-network"
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -121,7 +142,7 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN_APP}`)"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN_APP}`) || Host(`${DOMAIN_COOKBOOK}`) || Host(`${DOMAIN_FORMS}`) || Host(`${DOMAIN_BLOG}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
       - "traefik.http.routers.frontend.tls=true"
@@ -141,17 +162,20 @@ services:
       KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL}
       KEYCLOAK_ISSUER_URL: https://${DOMAIN_AUTH}/realms/${KEYCLOAK_APP_REALM}
       KEYCLOAK_REALM: ${KEYCLOAK_APP_REALM}
-      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
-      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      DB_HOST: ${DB_HOST}
+      APP_DB_NAME: ${APP_DB_NAME}
+      APP_DB_USER: ${APP_DB_USER}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
     labels:
+      # DEV ONLY: Remove all labels when deploying to production!
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`${DOMAIN_API}`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
       - "traefik.http.routers.backend.tls=true"
-      - "traefik.docker.network=playground_proxy-network"
+      - "traefik.docker.network=proxy-network"
     networks:
-      - proxy-network
+      - proxy-network # DEV ONLY: Remove when deploying to production!
       - internal-network
     depends_on:
       keycloak:
@@ -163,14 +187,45 @@ services:
         reservations:
           memory: 128M
 
+  bff:
+    build: ./bff
+    extra_hosts:
+      - "auth.localhost:host-gateway" # DEV ONLY: Change to public authorization domain when deploying to production!
+    environment:
+      - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL}
+      - KEYCLOAK_EXTERNAL_URL=https://${DOMAIN_AUTH}
+      - REALM=${KEYCLOAK_APP_REALM}
+      - CLIENT_ID=${KEYCLOAK_FRONTEND_CLIENT_ID}
+      - CLIENT_SECRET=${KEYCLOAK_FRONTEND_CLIENT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN}
+      - NODE_TLS_REJECT_UNAUTHORIZED=0 # DEV ONLY: Remove or set to 1 when deploying to production!
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bff.rule=(Host(`${DOMAIN_APP}`) || Host(`${DOMAIN_COOKBOOK}`) || Host(`${DOMAIN_FORMS}`) || Host(`${DOMAIN_BLOG}`)) && PathPrefix(`/api`)" # DEV ONLY: Change when deploying to production!
+      - "traefik.http.routers.bff.priority=100"
+      - "traefik.http.routers.bff.entrypoints=websecure"
+      - "traefik.http.routers.bff.tls=true"
+      - "traefik.http.services.bff.loadbalancer.server.port=3000"
+      - "traefik.docker.network=proxy-network"
+    networks:
+      - proxy-network
+      - internal-network
+    depends_on:
+      keycloak:
+        condition: service_healthy
 
 volumes:
   postgres_data:
 
 networks:
   proxy-network:
+    name: proxy-network
     driver: bridge
     attachable: true
   internal-network:
+    name: internal-network
     driver: bridge
     attachable: true
+  socket-proxy-net:
+    internal: true

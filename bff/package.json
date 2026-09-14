@@ -1,0 +1,14 @@
+{
+  "name": "bff-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "cookie-parser": "^1.4.6",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "openid-client": "^5.6.5"
+  },
+  "overrides": {
+    "qs": "^6.15.4"
+  }
+}

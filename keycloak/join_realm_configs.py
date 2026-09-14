@@ -11,6 +11,7 @@ OUTPUT_FILE = IMPORT_DIR / "realms-export.json"
 USERS_FILE = KEYCLOAK_DIR / "users.json"
 ENV_FILE = KEYCLOAK_DIR / ".env"
 ROLES_FILE = KEYCLOAK_DIR / "playground_roles.json"
+CLIENT_CONFIG_FILE = KEYCLOAK_DIR / "playground_frontend_client_config.json"
 
 
 def load_playground_roles():
@@ -30,6 +31,40 @@ def load_environment():
         print(f"[i] Załadowano zmienne z pliku: {ENV_FILE.name}")
     else:
         load_dotenv(override=True)
+
+
+def load_playground_client_config():
+    if not CLIENT_CONFIG_FILE.exists():
+        print(f"[-] BŁĄD: Brak pliku {CLIENT_CONFIG_FILE.name}!")
+        return None
+    try:
+        with open(CLIENT_CONFIG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[-] BŁĄD podczas odczytu {CLIENT_CONFIG_FILE.name}: {e}")
+        return None
+
+def override_playground_client(realm_data, new_client_config):
+    if not new_client_config:
+        return
+
+    if "clients" not in realm_data:
+        realm_data["clients"] = []
+
+    target_client_id = new_client_config.get("clientId", "playground-frontend")
+    clients = realm_data["clients"]
+    
+    updated = False
+    for i, existing_client in enumerate(clients):
+        if existing_client.get("clientId") == target_client_id:
+            clients[i] = new_client_config
+            updated = True
+            print(f"  [+] Nadpisano klienta '{target_client_id}' pełną konfiguracją z pliku JSON.")
+            break
+
+    if not updated:
+        clients.append(new_client_config)
+        print(f"  [+] Dodano klienta '{target_client_id}' z pliku JSON do sekcji clients.")
 
 
 def substitute_env_vars(data):
@@ -143,6 +178,7 @@ def merge_realms():
             sys.exit(1)
 
     users_data = substitute_env_vars(load_users())
+    client_config_template = load_playground_client_config()
 
     merged_data = []
     print(f"[i] Znaleziono {len(source_files)} plik(ów) realmów do scalenia:")
@@ -157,6 +193,13 @@ def merge_realms():
                     data = apply_pre_substitute_patches(data, file_path.name)
                 elif isinstance(data, list):
                     data = [apply_pre_substitute_patches(r, file_path.name) for r in data]
+
+                if isinstance(data, dict) and data.get("realm") == "playground":
+                    override_playground_client(data, client_config_template)
+                elif isinstance(data, list):
+                    for realm in data:
+                        if isinstance(realm, dict) and realm.get("realm") == "playground":
+                            override_playground_client(realm, client_config_template)
 
                 data = substitute_env_vars(data)
 
