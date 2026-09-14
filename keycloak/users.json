@@ -22,7 +22,7 @@
             }
         ]
     },
-    "playground": {
+    "app": {
         "users": [
             {
                 "username": "${KEYCLOAK_APP_REALM_ADMIN}",
@@ -39,7 +39,7 @@
                     }
                 ],
                 "realmRoles": [
-                    "default-roles-playground"
+                    "default-roles-app"
                 ],
                 "clientRoles": {
                     "realm-management": [
@@ -62,8 +62,8 @@
                     }
                 ],
                 "realmRoles": [
-                    "default-roles-playground",
-                    "playground-admin"
+                    "default-roles-app",
+                    "app-admin"
                 ]
             },
             {
@@ -81,8 +81,8 @@
                     }
                 ],
                 "realmRoles": [
-                    "default-roles-playground",
-                    "playground-user"
+                    "default-roles-app",
+                    "app-user"
                 ]
             }
         ]

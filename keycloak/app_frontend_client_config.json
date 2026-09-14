@@ -1,7 +1,7 @@
 {
       "id": "e6b195f4-4536-4a95-a236-525cbdd81708",
-      "clientId": "playground-frontend",
-      "name": "Playground Frontend Client",
+      "clientId": "app-frontend",
+      "name": "App Frontend Client",
       "description": "",
       "rootUrl": "https://localhost",
       "adminUrl": "https://localhost",

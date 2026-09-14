@@ -108,7 +108,7 @@
             "create-realm"
           ],
           "client": {
-            "playground-realm": [
+            "app-realm": [
               "view-identity-providers",
               "manage-clients",
               "view-events",
@@ -162,7 +162,7 @@
       }
     ],
     "client": {
-      "playground-realm": [
+      "app-realm": [
         {
           "id": "308faa55-96b8-4193-bcb1-72b968d7dcb5",
           "name": "query-clients",
@@ -179,7 +179,7 @@
           "composite": true,
           "composites": {
             "client": {
-              "playground-realm": [
+              "app-realm": [
                 "query-organizations"
               ]
             }
@@ -249,7 +249,7 @@
           "composite": true,
           "composites": {
             "client": {
-              "playground-realm": [
+              "app-realm": [
                 "query-groups",
                 "query-users"
               ]
@@ -302,7 +302,7 @@
           "composite": true,
           "composites": {
             "client": {
-              "playground-realm": [
+              "app-realm": [
                 "query-clients"
               ]
             }
@@ -1000,8 +1000,8 @@
     },
     {
       "id": "28559fc7-dd09-477e-a762-d5b2222344a1",
-      "clientId": "playground-realm",
-      "name": "playground-realm Realm",
+      "clientId": "app-realm",
+      "name": "app-realm Realm",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,

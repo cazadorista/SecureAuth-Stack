@@ -10,11 +10,11 @@ IMPORT_DIR = KEYCLOAK_DIR / "import"
 OUTPUT_FILE = IMPORT_DIR / "realms-export.json"
 USERS_FILE = KEYCLOAK_DIR / "users.json"
 ENV_FILE = KEYCLOAK_DIR / ".env"
-ROLES_FILE = KEYCLOAK_DIR / "playground_roles.json"
-CLIENT_CONFIG_FILE = KEYCLOAK_DIR / "playground_frontend_client_config.json"
+ROLES_FILE = KEYCLOAK_DIR / "app_roles.json"
+CLIENT_CONFIG_FILE = KEYCLOAK_DIR / "app_frontend_client_config.json"
 
 
-def load_playground_roles():
+def load_app_roles():
     if not ROLES_FILE.exists():
         print(f"[i] Brak pliku {ROLES_FILE.name} – role nie zostaną dodane.")
         return []
@@ -33,7 +33,7 @@ def load_environment():
         load_dotenv(override=True)
 
 
-def load_playground_client_config():
+def load_app_client_config():
     if not CLIENT_CONFIG_FILE.exists():
         print(f"[-] BŁĄD: Brak pliku {CLIENT_CONFIG_FILE.name}!")
         return None
@@ -44,14 +44,14 @@ def load_playground_client_config():
         print(f"[-] BŁĄD podczas odczytu {CLIENT_CONFIG_FILE.name}: {e}")
         return None
 
-def override_playground_client(realm_data, new_client_config):
+def override_app_client(realm_data, new_client_config):
     if not new_client_config:
         return
 
     if "clients" not in realm_data:
         realm_data["clients"] = []
 
-    target_client_id = new_client_config.get("clientId", "playground-frontend")
+    target_client_id = new_client_config.get("clientId", "app-frontend")
     clients = realm_data["clients"]
     
     updated = False
@@ -99,7 +99,7 @@ def apply_pre_substitute_patches(data, file_name):
     if not isinstance(data, dict):
         return data
 
-    PLAYGROUND_ROLES = load_playground_roles()
+    APP_ROLES = load_app_roles()
 
     realm_name = data.get("realm", "")
 
@@ -110,17 +110,17 @@ def apply_pre_substitute_patches(data, file_name):
                 action["defaultAction"] = "${KC_MASTER_REQUIRE_REGISTER_WEBAUTHN}"
                 print(f"    [patch] Wstrzyknięto placeholder do 'webauthn-register-passwordless' w realmie master")
 
-    if realm_name == "playground" or "playground" in file_name.lower():
+    if realm_name == "app" or "app" in file_name.lower():
         if "roles" not in data:
             data["roles"] = {}
         if "realm" not in data["roles"]:
             data["roles"]["realm"] = []
 
         existing_roles = {r.get("name") for r in data["roles"]["realm"]}
-        for role in PLAYGROUND_ROLES:
+        for role in APP_ROLES:
             if role["name"] not in existing_roles:
                 data["roles"]["realm"].append(role)
-                print(f"    [patch] Dodano rolę '{role['name']}' do realmu playground")
+                print(f"    [patch] Dodano rolę '{role['name']}' do realmu app")
 
     return data
 
@@ -178,7 +178,7 @@ def merge_realms():
             sys.exit(1)
 
     users_data = substitute_env_vars(load_users())
-    client_config_template = load_playground_client_config()
+    client_config_template = load_app_client_config()
 
     merged_data = []
     print(f"[i] Znaleziono {len(source_files)} plik(ów) realmów do scalenia:")
@@ -194,12 +194,12 @@ def merge_realms():
                 elif isinstance(data, list):
                     data = [apply_pre_substitute_patches(r, file_path.name) for r in data]
 
-                if isinstance(data, dict) and data.get("realm") == "playground":
-                    override_playground_client(data, client_config_template)
+                if isinstance(data, dict) and data.get("realm") == "app":
+                    override_app_client(data, client_config_template)
                 elif isinstance(data, list):
                     for realm in data:
-                        if isinstance(realm, dict) and realm.get("realm") == "playground":
-                            override_playground_client(realm, client_config_template)
+                        if isinstance(realm, dict) and realm.get("realm") == "app":
+                            override_app_client(realm, client_config_template)
 
                 data = substitute_env_vars(data)
 

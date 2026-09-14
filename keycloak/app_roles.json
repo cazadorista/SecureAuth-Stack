@@ -1,0 +1,26 @@
+[
+  {
+    "name": "app-admin",
+    "description": "Admin in app realm",
+    "composite": true,
+    "composites": {
+      "realm": [
+        "app-mod"
+      ]
+    }
+  },
+  {
+    "name": "app-mod",
+    "description": "Moderator in app realm",
+    "composite": true,
+    "composites": {
+      "realm": [
+        "app-user"
+      ]
+    }
+  },
+  {
+    "name": "app-user",
+    "description": "Normal user in app realm"
+  }
+]

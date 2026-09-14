@@ -4,7 +4,7 @@ class Config:
     APP_DB_USER = os.getenv("APP_DB_USER", "postgres")
     APP_DB_PASSWORD = os.getenv("APP_DB_PASSWORD", "postgres")
     DB_HOST = os.getenv("DB_HOST", "postgres")
-    APP_DB_NAME = os.getenv("APP_DB_NAME", "cookbook")
+    APP_DB_NAME = os.getenv("APP_DB_NAME", "app")
 
     SQLALCHEMY_DATABASE_URI = (
         f"postgresql://{APP_DB_USER}:{APP_DB_PASSWORD}@{DB_HOST}:5432/{APP_DB_NAME}"

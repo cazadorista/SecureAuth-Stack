@@ -15,7 +15,7 @@ app.use(express.json());
 
 app.use(session({
   name: 'SID',
-  secret: process.env.SESSION_SECRET || 'super_tajny_sekret_sesji',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -29,8 +29,8 @@ app.use(session({
 let client;
 
 async function initOpenId() {
-  const internalUrl = process.env.KEYCLOAK_INTERNAL_URL || 'http://keycloak:8080';
-  const realm = process.env.REALM || 'playground';
+  const internalUrl = process.env.KEYCLOAK_INTERNAL_URL;
+  const realm = process.env.REALM;
   const discoveryUrl = `${internalUrl}/realms/${realm}`;
 
   try {
@@ -40,7 +40,7 @@ async function initOpenId() {
     client = new keycloakIssuer.Client({
       client_id: process.env.CLIENT_ID,
       client_secret: process.env.CLIENT_SECRET,
-      redirect_uris: ['https://localhost/api/auth/callback'],
+      redirect_uris: [`https://${process.env.DOMAIN_APP}/api/auth/callback`],
       response_types: ['code']
     });
 
@@ -57,7 +57,7 @@ app.get('/api/auth/login', (req, res) => {
       return res.status(503).send('Serwis autoryzacji BFF jeszcze się inicjalizuje, odśwież za chwilę stronę.');
     }
 
-    const redirectUri = req.query.redirect || 'https://localhost/';
+    const redirectUri = req.query.redirect;
     req.session.returnTo = redirectUri;
 
     const code_verifier = generators.codeVerifier();
@@ -66,13 +66,13 @@ app.get('/api/auth/login', (req, res) => {
 
     const rawUrl = client.authorizationUrl({
       scope: 'openid profile email',
-      redirect_uri: 'https://localhost/api/auth/callback',
+      redirect_uri: `https://${process.env.DOMAIN_APP}/api/auth/callback`,
       code_challenge,
       code_challenge_method: 'S256'
     });
 
-    const internalUrl = process.env.KEYCLOAK_INTERNAL_URL || 'http://keycloak:8080';
-    const externalUrl = process.env.KEYCLOAK_EXTERNAL_URL || 'https://auth.localhost';
+    const internalUrl = process.env.KEYCLOAK_INTERNAL_URL;
+    const externalUrl = process.env.KEYCLOAK_EXTERNAL_URL;
 
     req.session.save((err) => {
       if (err) console.error('Błąd zapisu sesji:', err);
@@ -99,7 +99,7 @@ app.get('/api/auth/callback', async (req, res) => {
     }
 
     const tokenSet = await client.callback(
-      'https://localhost/api/auth/callback',
+      `https://${process.env.DOMAIN_APP}/api/auth/callback`,
       params,
       { code_verifier }
     );
@@ -108,7 +108,7 @@ app.get('/api/auth/callback', async (req, res) => {
     req.session.tokens = tokenSet;
     req.session.user = tokenSet.claims();
 
-    const returnTo = req.session.returnTo || 'https://localhost/';
+    const returnTo = req.session.returnTo;
     delete req.session.returnTo;
 
     req.session.save(() => {
@@ -136,16 +136,16 @@ app.get('/api/auth/logout', (req, res) => {
   req.session.destroy(() => {
     res.clearCookie('SID', { path: '/' });
 
-    const externalUrl = process.env.KEYCLOAK_EXTERNAL_URL || 'https://auth.localhost';
-    const realm = process.env.REALM || 'playground';
-    const postLogoutRedirectUri = encodeURIComponent('https://localhost/');
+    const externalUrl = process.env.KEYCLOAK_EXTERNAL_URL;
+    const realm = process.env.REALM;
+    const postLogoutRedirectUri = encodeURIComponent(`https://${process.env.DOMAIN_APP}/`);
 
     let logoutUrl = `${externalUrl}/realms/${realm}/protocol/openid-connect/logout?post_logout_redirect_uri=${postLogoutRedirectUri}`;
 
     if (idToken) {
       logoutUrl += `&id_token_hint=${idToken}`;
     } else {
-      logoutUrl += `&client_id=${process.env.CLIENT_ID || 'bff-client'}`;
+      logoutUrl += `&client_id=${process.env.CLIENT_ID}`;
     }
 
     res.redirect(logoutUrl);
