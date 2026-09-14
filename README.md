@@ -115,14 +115,16 @@ docker compose --profile init run --rm --no-deps keycloak-config-builder
 
 ```
 
+### 2. For local development only!
+
+Modify the script contents according to domains you use.
 
 ```bash
-mkcert -install
-mkcert -cert-file certs/local-cert.pem -key-file certs/local-key.pem "localhost" "*.localhost"
+./generate_certs.sh
 ```
 
 
-### 2. Build and Run Containers
+### 3. Build and Run Containers
 
 ```bash
 docker compose up -d --build
@@ -130,7 +132,7 @@ docker compose up -d --build
 ```
 
 
-### 3. Local Domain Mapping
+### 4. Local Domain Mapping
 
 Ensure your `/etc/hosts` file contains the following entries:
 
