@@ -10,12 +10,13 @@ A modern, highly secure containerized architecture leveraging the **Backend-For-
 
 ## 🔑 Key Architectural Highlights
 
-* **Backend-For-Frontend (BFF) Pattern:** The browser-side Single Page Application (SPA) never touches or stores raw JWTs (`access_token`, `refresh_token`). Zero token storage in `localStorage` or `sessionStorage`.
-* **Encrypted Server-Side Sessions:** Client-to-BFF communication relies exclusively on encrypted session cookies hardened with `HttpOnly`, `Secure`, and `SameSite=Lax` flags (mitigating XSS and CSRF risks).
-* **OIDC + PKCE (Proof Key for Code Exchange):** Full `Authorization Code Flow` with PKCE. Token exchanges occur strictly over secure backchannel networks.
-* **Complete Network Segmentation:** Neither the Backend API nor the PostgreSQL database are exposed to the public internet. They operate inside isolated Docker virtual networks.
-* **GDPR Compliance & Transport Security:** Edge TLS termination handled by Traefik v3.7.
-* **Docker Socket Hardening:** Traefik interacts with the Docker daemon safely via `tecnativa/docker-socket-proxy` in read-only mode.
+* **Backend-For-Frontend (BFF) Pattern:** The browser-side Single Page Application (SPA) never touches or stores raw JWTs (`access_token`, `refresh_token`). Zero token storage in `localStorage` or `sessionStorage`
+* **Stateful Server-Side Sessions:** Client-to-BFF communication relies exclusively on encrypted session cookies hardened with `HttpOnly`, `Secure`, and `SameSite=Lax` flags (mitigating XSS and CSRF risks). Session states and OIDC tokens are securely offloaded to Redis
+* **Distributed Session Store:** Session data is persisted externally in Redis 7 using `connect-redis`, making the BFF layer completely stateless, highly scalable, and resilient to container restarts
+* **OIDC + PKCE (Proof Key for Code Exchange):** Full Authorization Code Flow with PKCE. Token exchanges occur strictly over secure backchannel networks, with short-lived verifiers stored in the active Redis session
+* **Complete Network Segmentation:** Neither the Backend API, PostgreSQL, nor Redis are exposed to the public internet. They operate inside an isolated Docker virtual network
+* **GDPR Compliance & Transport Security:** Edge TLS termination handled by Traefik v3.7
+* **Docker Socket Hardening:** Traefik interacts with the Docker daemon safely via `tecnativa/docker-socket-proxy` in read-only mode
 
 ---
 
@@ -40,6 +41,7 @@ graph TD
 
         subgraph InternalNet [" 🔒 internal-network (Isolated) "]
             Postgres[("Database: PostgreSQL 16<br/>Keycloak & App DB")]
+            Redis[("Session Store: Redis 7<br/>BFF Sessions")]
         end
 
         subgraph SocketNet [" 🔑 socket-proxy-net (Internal) "]
@@ -62,7 +64,8 @@ graph TD
     BFF -->|OIDC Discovery & Token Exchange| Keycloak
     Backend -->|JWT Verification| Keycloak
 
-    %% Database Access
+    %% Database & Session Store Access
+    BFF -->|Session Storage / Retrieval| Redis
     Keycloak -->|Internal DB Traffic| Postgres
     Backend -->|Internal DB Traffic| Postgres
     InitBuilder -.->|Realm Config Import| Keycloak
@@ -94,6 +97,7 @@ graph TD
 * **Frontend:** Multi-domain SPA (React / Vue) served via Nginx
 * **Database:** PostgreSQL 16
 * **Security Layer:** Docker Socket Proxy (`tecnativa`)
+* **Session Store:** Redis 7 (Distributed session storage for BFF)
 
 ---
 

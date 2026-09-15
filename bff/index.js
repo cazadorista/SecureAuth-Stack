@@ -1,6 +1,8 @@
 const express = require('express');
 const session = require('express-session');
 const { Issuer, custom, generators } = require('openid-client');
+const { createClient } = require('redis');
+const { RedisStore } = require('connect-redis');
 
 custom.setHttpOptionsDefaults({
   timeout: 10000,
@@ -9,11 +11,18 @@ custom.setHttpOptionsDefaults({
 const app = express();
 const PORT = 3000;
 
+const redisClient = createClient({
+  url: process.env.REDIS_URL
+});
+
+redisClient.connect().catch(console.error);
+
 app.set('trust proxy', 1);
 
 app.use(express.json());
 
 app.use(session({
+  store: new RedisStore({ client: redisClient, prefix: 'bff_sess:', ttl: 86400 }),
   name: 'SID',
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -22,7 +31,8 @@ app.use(session({
     httpOnly: true,
     secure: false, // DEV ONLY: False on local environment for browser allowing http/https cookies
     sameSite: 'lax',
-    path: '/'
+    path: '/',
+    domain: process.env.COOKIE_DOMAIN
   }
 }));
 
@@ -51,7 +61,7 @@ async function initOpenId() {
 }
 
 // Login
-app.get('/api/auth/login', (req, res) => {
+app.get('/api/auth/login', async (req, res) => {
   try {
     if (!client) {
       return res.status(503).send('Serwis autoryzacji BFF jeszcze się inicjalizuje, odśwież za chwilę stronę.');
@@ -74,13 +84,21 @@ app.get('/api/auth/login', (req, res) => {
     const internalUrl = process.env.KEYCLOAK_INTERNAL_URL;
     const externalUrl = process.env.KEYCLOAK_EXTERNAL_URL;
 
+    if (!internalUrl || !externalUrl) {
+      return res.status(500).send('Błąd konfiguracji zmiennych środowiskowych KEYCLOAK_*');
+    }
+
+    const targetUrl = rawUrl.replace(internalUrl, externalUrl);
+
     req.session.save((err) => {
-      if (err) console.error('Błąd zapisu sesji:', err);
-      res.redirect(rawUrl.replace(internalUrl, externalUrl));
+      if (err) {
+        return res.status(500).send('Błąd zapisu sesji w Redis');
+      }
+      return res.redirect(targetUrl);
     });
   } catch (err) {
     console.error('Błąd w /api/auth/login:', err);
-    res.status(500).send('Błąd generowania przekierowania autoryzacji: ' + err.message);
+    return res.status(500).send('Błąd generowania przekierowania autoryzacji: ' + err.message);
   }
 });
 
@@ -111,8 +129,13 @@ app.get('/api/auth/callback', async (req, res) => {
     const returnTo = req.session.returnTo;
     delete req.session.returnTo;
 
-    req.session.save(() => {
-      res.redirect(returnTo);
+    req.session.save((err) => {
+      if (err) {
+        console.error('Błąd zapisu sesji w Redis po zalogowaniu:', err);
+        return res.status(500).send('Błąd zapisu sesji');
+      }
+      console.log(`Zalogowano pomyślnie. Przekierowuję na: ${returnTo}`);
+      return res.redirect(returnTo);
     });
   } catch (err) {
     console.error('Błąd autoryzacji w BFF:', err);
